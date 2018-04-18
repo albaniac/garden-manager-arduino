@@ -32,8 +32,8 @@ I will opensource everything, and will provide every details I can on used compo
 First, details on expected budget : For now I'm bellow 250€ for everything, including server environnment, but it may change as I will discover things. I try to make everything "reusable" for futur projects, so I will work with prototype shields. For this price I have 2 Arduino Uno, 1 arduino Mega Mega2560, 2 Lora Shield, 1 LoraWan Gateway based on arduino Yum, 1 specific Moisture sensor, various DHT11 temp / humidity sensors, 1 complete Raspeberry Pi 3 Rev A with SD/Alim/Box.
 
 What to buy :
-- I started working on Arduino with this very good kit : [Elegoo Mega2560 kit](https://www.elegoo.com/product/elegoo-mega-2560-project-the-most-complete-starter-kit/), at 55€ in every chinese stuff seler (I will buy almost only chinese clones, the standard Arduinos are too expensive)
-- I have bought this Lora-based Iot kit : [Dragino Lora kit](https://www.tindie.com/products/edwin/lora-iot-development-kit/#product-name), at 115€ with shipping cost. As it includes the gateway, 2 arduino Uno + 2 Lora shield, the price is very good.
+- I started working on Arduino with this very good kit : [Elegoo Mega2560 kit](https://www.elegoo.com/product/elegoo-mega-2560-project-the-most-complete-starter-kit/), at 55€ in every chinese stuff seler (I will buy almost only chinese clones, the standard Arduinos are too expensive). The mega2560 board quality seems very good. The sensors are "standard" inexpensive stuff. 
+- I have bought this Lora-based Iot kit : [Dragino Lora kit](https://www.tindie.com/products/edwin/lora-iot-development-kit/#product-name), at 115€ with shipping cost. As it includes the gateway, 2 arduino Uno + 2 Lora shield (including one with GPS), the price is very good. The Gateway quality is good, as are the shields. The UNO and the sensors are not as great, but it will do the job. 
 - The moisture sensor is from indie also : [I2C Soil moisture sensor](https://www.tindie.com/products/miceuz/i2c-soil-moisture-sensor/) : 12€ with shipping
 - RaspeberryPi kit. But if you want much more power and usability with you "server", for twice the price you can buy a chinese NUC clone. I have for example a celeron (so x64 core, vs the RaspPi 32b arm Core) + 4Gb + 64Gb PC bought at 120€ on Gearbest. It's like 4 times the power of a raspPi, with x64 compatibility (so no custom build linux distrib, full docker compatibility ...). 
 
@@ -55,8 +55,37 @@ Soon ...
 
 ### Arduino codes
 
-For now I have just started a prototype with DHT11 sensor and RTC management. 
+For now I have started :
+
+#### A prototype with DHT11 sensor and RTC management. 
 
 Why RTC : I don't expect to collect values at every arduino loop, I suppose I will :
 * Use a piloted alim for RTC controled start / shutdown of the sensor relay. Every 5 minutes I guess.
 * Even if running this way, I do not need data from all sensors. For example I will expect from the Camera 1 picture every 30 minutes, something like that. So a RTC controlled programming will be usefull. Hopefully, everything is very easy to use, as usual with arduino. 
+
+#### A prototype of DHT11 data sharing from 2 nodes with a Dragino LoRa gateway
+
+Using Dragino LG-01, it is easy to build a Gateway service with multiple LoRa nodes. 2 nodes (Uno + LoRa Shield) are provided in the Dragino IoT kit. 
+
+Connect with SSH to gateway, and add script /opt/server/push_data_rest.sh
+
+    #!/bin/sh
+
+    NODE=$1
+    DATA=$2
+
+    SERVER_URL=http://192.168.0.23:8080
+
+    BODY=$(printf '{"nodeId":"%s","payload":"%s"}' $NODE $DATA)
+
+    curl -H "Content-Type: application/json" -X POST -d $BODY $SERVER_URL/rest/data/record
+
+The Gateway is based on Arduino Yum, with an integrated Lora shield. As a Yum plateform there is an embedded LinuxWrt system. It is possible to call for Yum system process from Arduino code, making it possible to add high level integration from low-level microcontroller code.
+LinuxWrt includes curl support, so it is easy to add scripting solution for basic rest service call. This /rest/data/record service is associated to the project garden-manager-service, providing a prototype backend for data management.
+
+The arduino code for server is **proto_server**. This sketch listen for lora message, and sendback received data to backend server using push_data_rest.sh
+
+The arduino code for nodes is **proto_client**. This sketch get values from a DHT11 sensor, and send them to a Lora gateway. 
+
+All codes are simplified / personalized from Dragino example and other standard example. Nothing is optimized.
+
